@@ -8,6 +8,8 @@
 
 The package that transparently resolve secret references for secret managers (e.g., Google Secret Manager, Hashicorp Vault) in environment variables.
 
+The idea comes from [GoogleCloudPlatform/berglas](https://github.com/GoogleCloudPlatform/berglas).
+
 ## Usage
 
 ```go
