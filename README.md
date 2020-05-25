@@ -10,7 +10,7 @@ The package that transparently resolve secret references for secret managers (e.
 
 The idea comes from [GoogleCloudPlatform/berglas](https://github.com/GoogleCloudPlatform/berglas).
 
-## Usage
+## Example
 
 ```go
 import (
