@@ -8,7 +8,9 @@
 
 The package that transparently resolve secret references for secret managers (e.g., Google Secret Manager, Hashicorp Vault) in environment variables.
 
-The idea comes from [GoogleCloudPlatform/berglas](https://github.com/GoogleCloudPlatform/berglas).
+The idea comes from [Berglas](https://github.com/GoogleCloudPlatform/berglas).
+`go-secretresolver` is general-purpose resolver package unlike Berglas.
+It means `go-secretresolver` works well with any secret manager.
 
 ## Example
 
