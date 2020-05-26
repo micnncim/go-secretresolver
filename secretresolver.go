@@ -56,7 +56,7 @@ func Resolve(ctx context.Context, f GetSecretValueFunc, opts ...Option) error {
 
 		secretVal, err := f(ctx, secretRef)
 		if err != nil {
-			return fmt.Errorf("failed to resolve %q: %w", envKey, err)
+			return fmt.Errorf("failed to resolve %q: %w", envValue, err)
 		}
 
 		// Replace secret references in environment variables with secret values.
