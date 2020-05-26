@@ -11,39 +11,32 @@ const (
 	defaultSecretPrefix = "secret://"
 )
 
-type SecretResolver interface {
-	Resolve(context.Context) error
-}
-
-type secretResolver struct {
-	secretManager SecretManager
-
+// Config represents a configuration for Resolve.
+type Config struct {
 	secretPrefix string
 }
 
-// Guarantee *resolver implements Resolver.
-var _ SecretResolver = (*secretResolver)(nil)
+// Option represents a function that sets optional values in *Config.
+type Option func(c *Config)
 
-type Option func(r *secretResolver)
-
+// WithSecretPrefix returns Option that sets *Config.secretPrefix with the optional value.
 func WithSecretPrefix(p string) Option {
-	return func(r *secretResolver) { r.secretPrefix = p }
+	return func(c *Config) { c.secretPrefix = p }
 }
 
-func New(secretManager SecretManager, opts ...Option) SecretResolver {
-	r := &secretResolver{
-		secretManager: secretManager,
-		secretPrefix:  defaultSecretPrefix,
+// GetSecretValueFunc represents a function that gets a secret value from the given key.
+type GetSecretValueFunc func(ctx context.Context, key string) (value string, err error)
+
+// Resolve transparently resolves environment variables to set secret values.
+func Resolve(ctx context.Context, f GetSecretValueFunc, opts ...Option) error {
+	c := &Config{
+		secretPrefix: defaultSecretPrefix,
 	}
 
 	for _, opt := range opts {
-		opt(r)
+		opt(c)
 	}
 
-	return r
-}
-
-func (r *secretResolver) Resolve(ctx context.Context) error {
 	for _, e := range os.Environ() {
 		slugs := strings.SplitN(e, "=", 2)
 		if len(slugs) != 2 {
@@ -52,13 +45,13 @@ func (r *secretResolver) Resolve(ctx context.Context) error {
 
 		envKey, envValue := slugs[0], slugs[1]
 
-		if !strings.HasPrefix(envValue, r.secretPrefix) {
+		if !strings.HasPrefix(envValue, c.secretPrefix) {
 			continue
 		}
 
-		secretRef := strings.TrimPrefix(envValue, r.secretPrefix)
+		secretRef := strings.TrimPrefix(envValue, c.secretPrefix)
 
-		secretVal, err := r.secretManager.GetSecretValue(ctx, secretRef)
+		secretVal, err := f(ctx, secretRef)
 		if err != nil {
 			return fmt.Errorf("failed to resolve %q: %w", envKey, err)
 		}

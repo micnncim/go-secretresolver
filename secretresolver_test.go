@@ -3,58 +3,108 @@ package secretresolver
 import (
 	"context"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
-func Test_secretResolver_Resolve(t *testing.T) {
+func TestResolve(t *testing.T) {
+	type args struct {
+		f    GetSecretValueFunc
+		opts []Option
+	}
+
 	tests := []struct {
-		name        string
-		envKey      string
-		envValue    string
-		secretValue string
-		want        string
+		name     string
+		args     args
+		fakeEnvs map[string]string
+		want     map[string]string
 	}{
 		{
-			name:     "keep non-secret env",
-			envKey:   "KEY1",
-			envValue: "VALUE1",
-			want:     "VALUE1",
+			name: "keep non-secret env",
+			fakeEnvs: map[string]string{
+				"KEY1": "VALUE1",
+			},
+			want: map[string]string{
+				"KEY1": "VALUE1",
+			},
 		},
 		{
-			name:        "resolve secret",
-			envKey:      "KEY2",
-			envValue:    "secret://projects/my-project/secrets/my-secret/versions/123",
-			secretValue: "VALUE2",
-			want:        "VALUE2",
+			name: "resolve secret env",
+			args: args{
+				f: func(_ context.Context, key string) (string, error) {
+					s := map[string]string{
+						"projects/my-project/secrets/my-secret/versions/123": "VALUE2",
+					}
+					return s[key], nil
+				},
+			},
+			fakeEnvs: map[string]string{
+				"KEY2": "secret://projects/my-project/secrets/my-secret/versions/123",
+			},
+			want: map[string]string{
+				"KEY2": "VALUE2",
+			},
+		},
+		{
+			name: "resolve secret env with custom prefix",
+			args: args{
+				f: func(_ context.Context, key string) (string, error) {
+					s := map[string]string{
+						"projects/my-project/secrets/my-secret/versions/456": "VALUE3",
+					}
+					return s[key], nil
+				},
+				opts: []Option{WithSecretPrefix("s://")},
+			},
+			fakeEnvs: map[string]string{
+				"KEY3": "s://projects/my-project/secrets/my-secret/versions/456",
+			},
+			want: map[string]string{
+				"KEY3": "VALUE3",
+			},
+		},
+		{
+			name: "resolve some secret envs and keep some non-secret envs",
+			args: args{
+				f: func(_ context.Context, key string) (string, error) {
+					s := map[string]string{
+						"projects/my-project/secrets/my-secret/versions/789": "VALUE4",
+					}
+					return s[key], nil
+				},
+			},
+			fakeEnvs: map[string]string{
+				"KEY4": "secret://projects/my-project/secrets/my-secret/versions/789",
+				"KEY5": "VALUE5",
+			},
+			want: map[string]string{
+				"KEY4": "VALUE4",
+				"KEY5": "VALUE5",
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			func() {
-				setenv(t, tt.envKey, tt.envValue)
-
-				sm := newFakeManager()
-
-				if tt.secretValue != "" {
-					sm.SetSecretValue(strings.TrimPrefix(tt.envValue, defaultSecretPrefix), tt.secretValue) // Set fake secret value.
+				for k, v := range tt.fakeEnvs {
+					setenv(t, k, v)
 				}
 
-				r := New(sm)
-
-				if err := r.Resolve(context.Background()); err != nil {
+				if err := Resolve(context.Background(), tt.args.f, tt.args.opts...); err != nil {
 					t.Fatalf("err: %v", err)
 				}
 
-				got := os.Getenv(tt.envKey)
-				if diff := cmp.Diff(tt.want, got); diff != "" {
-					t.Fatalf("(-want +got):\n%s", diff)
+				for k, v := range tt.want {
+					got := os.Getenv(k)
+					if diff := cmp.Diff(v, got); diff != "" {
+						t.Fatalf("(-want +got):\n%s", diff)
+					}
 				}
 			}()
 		})

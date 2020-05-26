@@ -16,6 +16,7 @@ It means `go-secretresolver` works well with any secret manager.
 
 ```go
 import (
+    "fmt"
     "os"
 
     "github.com/micnncim/go-secretresolver"
@@ -27,33 +28,27 @@ type GoogleSecretManager struct {
      client *secretmanager.Client
 }
 
-// Guarantee GoogleSecretManager implements secretresolver.SecretManager.
-var _ secretresolver.SecretManager = (*GoogleSecretManager)(nil)
-
 func (m *GoogleSecretManager) GetSecretValue(ctx context.Context, name string) (string, error) {
-    result, err := m.client.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
+    result, _ := m.client.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
         Name: name,
     })
-    if err != nil {
-        return "", fmt.Errorf("failed to access secret %v: %w", name, err)
-    }
     return string(result.Payload.Data), nil
 }
 
 func main() {
-    client, err := secretmanager.NewClient(ctx)
-    if err != nil {
-        return nil, err
-    }
+    // Before getting started, create a secret in some secret manager.
+    // $ echo "VALUE" | gcloud secrets create my-secret --data-file=- --project=my-project
+
+    client, _ := secretmanager.NewClient(ctx)
     sm := &GoogleSecretManager{
         client: client,
     }
 
-    // With default prefix (secret://)
-    secretresolver.New(client).Resolve(context.Background())
+    os.Setenv("KEY", "secret://projects/my-project/secrets/my-secret/versions/latest")
 
-    // With custom prefix
-    secretresolver.New(client, secretresolver.WithSecretPrefix("sm://")).Resolve(context.Background())
+    secretresolver.Resolve(context.Background(), sm.GetSecretValue)
+
+    fmt.Println(os.Getenv("KEY")) // => "VALUE"
 }
 ```
 
