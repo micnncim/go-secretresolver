@@ -15,6 +15,8 @@ It means `go-secretresolver` works well with any secret manager.
 ## Example
 
 ```go
+package main
+
 import (
     "fmt"
     "os"
@@ -39,6 +41,8 @@ func main() {
     // Before getting started, create a secret in some secret manager.
     // $ echo "VALUE" | gcloud secrets create my-secret --data-file=- --project=my-project
 
+    ctx := context.Background()
+
     client, _ := secretmanager.NewClient(ctx)
     sm := &GoogleSecretManager{
         client: client,
@@ -46,7 +50,7 @@ func main() {
 
     os.Setenv("KEY", "secret://projects/my-project/secrets/my-secret/versions/latest")
 
-    secretresolver.Resolve(context.Background(), sm.GetSecretValue)
+    secretresolver.Resolve(ctx, sm.GetSecretValue)
 
     fmt.Println(os.Getenv("KEY")) // => "VALUE"
 }
