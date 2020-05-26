@@ -28,6 +28,9 @@ func WithSecretPrefix(p string) Option {
 type GetSecretValueFunc func(ctx context.Context, key string) (value string, err error)
 
 // Resolve transparently resolves environment variables to set secret values.
+//
+// This function finds the environment variables with the prefix, then gets a secret value with
+// the given function GetSecretValueFunc, and finally replace the environment variable value with the secret value.
 func Resolve(ctx context.Context, f GetSecretValueFunc, opts ...Option) error {
 	c := &Config{
 		secretPrefix: defaultSecretPrefix,
